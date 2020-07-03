@@ -3,6 +3,7 @@ const axios = require('axios')
 const { parse } = require('node-html-parser');
 const fs = require('fs');
 
+// Get the data contained in a google sheet with the given sheet id and data range
 function getData(auth, spreadsheetId, range) {
     const p = new Promise((res, rej) => {
         const sheets = google.sheets({version: 'v4', auth});
@@ -21,6 +22,7 @@ function getData(auth, spreadsheetId, range) {
     return p;
 }
 
+// return the html content of a get request
 const getHtml = (url) => {
     const p = new Promise((res, rej) => {
         axios.get(url).then(raw => {
@@ -32,6 +34,7 @@ const getHtml = (url) => {
     return p;
 }
 
+// find the website listed on a businesses' official black wall street page
 const getWebsite = (html) => {
     const root = parse(html, {
         lowerCaseTagName: false,
@@ -48,7 +51,10 @@ const getWebsite = (html) => {
     return link || 'N/A';
 }
 
-
+// send an object with data on a businesses' website to a Google Apps Script app that saves it in our spreadsheet
+// Why not use Google Sheets API again? That might be a better approach here because it would keep all the code in
+// this file, but I didn't want to add another authorization scope to the Google API authorization script, and I
+// I already had a Google Apps script app set up to do this. I'm certainly opening to refactoring this if the need arrises.
 const saveWebsites = async () => {
     const baseUrl = 'https://script.google.com/macros/s/AKfycbw4yw_5w65rAqT0RPj6BFDDMWZboS4DE9e88dR3_GK29zNBZW8d/exec?'
     const sites = JSON.parse(fs.readFileSync('websites.json'));
@@ -64,10 +70,15 @@ const saveWebsites = async () => {
     }
 }
 
-const pullBusinessSites = () => {
+// Iterate over the OBW pages in the given google sheet
+// requests the html for businesses' actual website if listed on the page
+// saves the website to websites.json
+// Why not use a database to save the websites?
+//  I didn't need any of the efficiency offered by a database for this so I didn't think it was worth the setup.
+const pullBusinessSites = (spreadsheetId, range) => {
     authenticateGapiSession().then(token => {
         console.log('GAPI session authorized');
-        getData(token, '1fOo7oZxCXDdeXNjIhPZquSJgMLjrNXbOSAcG6BVqM5w', 'OBW!A420:C4457').then(async (rows) => {
+        getData(token, spreadsheetId, range).then(async (rows) => {
             const numRows = rows.length;
             for (let i = 0; i < rows.length; i++) {
                 console.log(`... ${+i + 1} / ${numRows}`);
