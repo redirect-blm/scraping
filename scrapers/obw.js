@@ -75,21 +75,20 @@ const saveWebsites = async () => {
 // saves the website to websites.json
 // Why not use a database to save the websites?
 //  I didn't need any of the efficiency offered by a database for this so I didn't think it was worth the setup.
-const pullBusinessSites = (spreadsheetId, range) => {
+const pullBusinessSites = async (spreadsheetId, range) => {
     authenticateGapiSession().then(token => {
         console.log('GAPI session authorized');
-        getData(token, spreadsheetId, range).then(async (rows) => {
-            const numRows = rows.length;
-            for (let i = 0; i < rows.length; i++) {
+        const rows = await getData(token, spreadsheetId, range);
+        const numRows = rows.length;
+        let webSites = JSON.parse(fs.readFileSync('websites.json'));
+            for (let i = 0; i < numRows; i++) {
                 console.log(`... ${+i + 1} / ${numRows}`);
-                let webSites = JSON.parse(fs.readFileSync('websites.json'));
                 // the cell that contains the obw page for the business
                 if (!rows[i][2]) {
                     webSites.push({name: rows[i][0], website: "N/A"});
                     continue;
                 };
-                let html;
-                let webpageObj;
+                let html, webpageObj;
                 let website = 'N/A'
                 try {
                   html = await (getHtml(`https://www.${rows[i][2]}`));
@@ -97,15 +96,13 @@ const pullBusinessSites = (spreadsheetId, range) => {
                     console.log('Error getting obw url');
                     webpageObj = { name: rows[i][0], website }
                     webSites.push(webpage)
-                    fs.writeFileSync('websites.json', JSON.stringify(webSites))
                     continue;
                 }
                 website = getWebsite(html);
                 webpageObj =  { name: rows[i][0], website }
                 webSites.push(webpage)
-                fs.writeFileSync('websites.json', JSON.stringify(webSites))
             }
-        })
+            fs.writeFileSync('websites.json', JSON.stringify(webSites))
     }).catch(e => {
         console.log('Error authorizing GAPI session ', e);
     });
